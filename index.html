@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Darchei.tech Homepage</title>
+  <meta charset="UTF-8">
+  <title>Darchei.tech Invite Loader</title>
   <style>
     body {
       background: linear-gradient(45deg, lightpink, lightgreen, lightblue);
       font-family: Arial, sans-serif;
-      padding: 25px;
       text-align: center;
+      padding: 30px;
     }
     #content {
-      background-color: white;
+      background: white;
       border-radius: 15px;
       padding: 25px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-      display: inline-block;
       max-width: 600px;
+      margin: 0 auto;
     }
     input, button {
       padding: 10px;
@@ -35,27 +36,37 @@
 <div id="content">Loading...</div>
 
 <script>
+const GITHUB_API_TOKEN = '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';
+const JSON_PATH = 'https://api.github.com/repos/shimonkolodny/Backup-html/contents/Darchei.tech/links.json';
+const RAW_JSON_URL = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
+
+function convertToRaw(url) {
+  if (url.includes('github.com') && url.includes('/blob/')) {
+    return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+  }
+  return url;
+}
+
+async function fetchJSON() {
+  // Fetch via API to include token (to avoid rate limits)
+  const resp = await fetch(JSON_PATH, {
+    headers: { Authorization: 'token ' + GITHUB_API_TOKEN }
+  });
+  if (!resp.ok) throw new Error('Could not fetch JSON from GitHub API.');
+  const data = await resp.json();
+  return JSON.parse(atob(data.content));
+}
+
 async function loadContent(inviteCode) {
-  const jsonUrl = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
-
   try {
-    const codesRes = await fetch(jsonUrl);
-    if (!codesRes.ok) throw new Error('Could not load invite links.');
-
-    const codes = await codesRes.json();
-    const htmlUrl = codes[inviteCode];
-
-    if (!htmlUrl) {
-      document.getElementById('content').innerHTML = "<h2>Invite code invalid.</h2>";
-      return;
-    }
-
-    const htmlRes = await fetch(htmlUrl);
-    if (!htmlRes.ok) throw new Error('Could not fetch content.');
-
-    const html = await htmlRes.text();
+    const codes = await fetchJSON();
+    let htmlUrl = codes[inviteCode];
+    if (!htmlUrl) throw new Error('Invite code not found.');
+    htmlUrl = convertToRaw(htmlUrl);
+    const resp = await fetch(htmlUrl);
+    if (!resp.ok) throw new Error('Failed to fetch HTML content.');
+    const html = await resp.text();
     document.getElementById('content').innerHTML = html;
-
   } catch (e) {
     document.getElementById('content').innerHTML = `<h2>Error:</h2><p>${e.message}</p>`;
   }
@@ -70,26 +81,30 @@ function askForCode() {
 }
 
 function submitCode() {
-  let input = document.getElementById('codeInput').value.trim();
-  let inviteCode = input;
-
-  if(input.includes("?code=")){
-    inviteCode = new URL(input).searchParams.get('code');
+  const input = document.getElementById('codeInput').value.trim();
+  let code = input;
+  if (input.includes('?code=')) {
+    code = new URL(input).searchParams.get('code');
   }
-
-  if(inviteCode){
-    loadContent(inviteCode);
-  } else {
-    alert('Please enter a valid code or link.');
-  }
+  if (code) loadContent(code);
+  else alert('Please enter a valid code or link.');
 }
 
-window.onload = function(){
-  const params = new URLSearchParams(location.search);
-  let code = params.get('code');
+function handleRedirectToLogin() {
+  document.getElementById('content').innerHTML = `
+    <p>No invite code found.<br>
+    Redirecting to login page in 5 seconds...</p>
+  `;
+  setTimeout(() => {
+    window.location.href = 'https://accounts.google.com/';
+  }, 5000);
+}
 
-  if (!code) askForCode();
-  else loadContent(code);
+window.onload = () => {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  if (code) loadContent(code);
+  else handleRedirectToLogin();
 };
 </script>
 
