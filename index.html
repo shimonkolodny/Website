@@ -36,6 +36,8 @@
 <div id="content">Loading...</div>
 
 <script>
+const GITHUB_CLIENT_ID = 'Ov23liYTwSkVSE1oHmBC';
+const REDIRECT_URI = 'https://darcheitech.org/oauth/github/callback';
 const GITHUB_API_TOKEN = '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';
 const JSON_PATH = 'https://api.github.com/repos/shimonkolodny/Backup-html/contents/Darchei.tech/links.json';
 const RAW_JSON_URL = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
@@ -76,6 +78,8 @@ function askForCode() {
     <h3>Please enter your invite code or full invite link:</h3>
     <input id="codeInput" placeholder="Invite code or full link">
     <br><button onclick="submitCode()">Load Content</button>
+    <br><p>Or:</p>
+    <button onclick="startGitHubOAuth()">Login with GitHub</button>
   `;
 }
 
@@ -89,14 +93,14 @@ function submitCode() {
   else alert('Please enter a valid code or link.');
 }
 
-function handleRedirectToLogin() {
-  document.getElementById('content').innerHTML = `
-    <p>No invite code found.<br>
-    Redirecting to login page in 5 seconds...</p>
-  `;
-  setTimeout(() => {
-    window.location.href = 'https://accounts.google.com/';
-  }, 5000);
+function startGitHubOAuth() {
+  const state = 'randomstring123'; // generate dynamically in production
+  const url = `https://github.com/login/oauth/authorize?` +
+              `client_id=${encodeURIComponent(GITHUB_CLIENT_ID)}` +
+              `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+              `&scope=read:user` +
+              `&state=${encodeURIComponent(state)}`;
+  window.location.href = url;
 }
 
 window.onload = () => {
