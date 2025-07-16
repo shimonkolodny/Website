@@ -48,7 +48,6 @@ function convertToRaw(url) {
 }
 
 async function fetchJSON() {
-  // Fetch via API to include token (to avoid rate limits)
   const resp = await fetch(JSON_PATH, {
     headers: { Authorization: 'token ' + GITHUB_API_TOKEN }
   });
@@ -102,9 +101,39 @@ function handleRedirectToLogin() {
 
 window.onload = () => {
   const params = new URLSearchParams(location.search);
-  const code = params.get('code');
-  if (code) loadContent(code);
-  else handleRedirectToLogin();
+  const oauthCode = params.get('code');
+
+  if (oauthCode) {
+    fetch('/oauth/github/callback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code: oauthCode })
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('OAuth callback failed.');
+        return response.json();
+      })
+      .then(data => {
+        if (data.inviteCode) {
+          loadContent(data.inviteCode);
+        } else {
+          document.getElementById('content').innerHTML = `
+            <h2>OAuth Success</h2>
+            <p>But no invite code returned. You might want to redirect elsewhere.</p>
+          `;
+        }
+      })
+      .catch(err => {
+        document.getElementById('content').innerHTML = `
+          <h2>OAuth Error</h2>
+          <p>${err.message}</p>
+        `;
+      });
+  } else {
+    askForCode();
+  }
 };
 </script>
 
