@@ -1,112 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Darchei Tech</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Script Embed</title>
   <style>
-    body {
-      background: linear-gradient(45deg, lightpink, lightgreen, lightblue);
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 30px;
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
     }
-    #content {
-      background: white;
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    input, button {
-      padding: 10px;
-      margin-top: 15px;
-      border-radius: 12px;
-      border: 1px solid #ccc;
-      width: 80%;
-    }
-    button {
-      background-color: yellow;
-      cursor: pointer;
+    iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
     }
   </style>
 </head>
 <body>
-
-<div id="content">Loading...</div>
-
-<script>
-const GITHUB_API_TOKEN = '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';
-const JSON_PATH = 'https://api.github.com/repos/shimonkolodny/Backup-html/contents/Darchei.tech/links.json';
-const RAW_JSON_URL = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
-
-function convertToRaw(url) {
-  if (url.includes('github.com') && url.includes('/blob/')) {
-    return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-  }
-  return url;
-}
-
-async function fetchJSON() {
-  // Fetch via API to include token (to avoid rate limits)
-  const resp = await fetch(JSON_PATH, {
-    headers: { Authorization: 'token ' + GITHUB_API_TOKEN }
-  });
-  if (!resp.ok) throw new Error('Could not fetch JSON from GitHub API.');
-  const data = await resp.json();
-  return JSON.parse(atob(data.content));
-}
-
-async function loadContent(inviteCode) {
-  try {
-    const codes = await fetchJSON();
-    let htmlUrl = codes[inviteCode];
-    if (!htmlUrl) throw new Error('Invite code not found.');
-    htmlUrl = convertToRaw(htmlUrl);
-    const resp = await fetch(htmlUrl);
-    if (!resp.ok) throw new Error('Failed to fetch HTML content.');
-    const html = await resp.text();
-    document.getElementById('content').innerHTML = html;
-  } catch (e) {
-    document.getElementById('content').innerHTML = `<h2>Error:</h2><p>${e.message}</p>`;
-  }
-}
-
-function askForCode() {
-  document.getElementById('content').innerHTML = `
-    <h3>Please enter your invite code or full invite link:</h3>
-    <input id="codeInput" placeholder="Invite code or full link">
-    <br><button onclick="submitCode()">Load Content</button>
-  `;
-}
-
-function submitCode() {
-  const input = document.getElementById('codeInput').value.trim();
-  let code = input;
-  if (input.includes('?code=')) {
-    code = new URL(input).searchParams.get('code');
-  }
-  if (code) loadContent(code);
-  else alert('Please enter a valid code or link.');
-}
-
-function handleRedirectToLogin() {
-  document.getElementById('content').innerHTML = `
-    <p>No invite code found.<br>
-    Redirecting to login page in 5 seconds...</p>
-  `;
-  setTimeout(() => {
-    window.location.href = 'https://accounts.google.com/';
-  }, 5000);
-}
-
-window.onload = () => {
-  const params = new URLSearchParams(location.search);
-  const code = params.get('code');
-  if (code) loadContent(code);
-  else handleRedirectToLogin();
-};
-</script>
-
+  <iframe src="https://script.google.com/macros/s/AKfycbyF3OeeXX29ooqvw-V2mFdKWn5bxZC4fYdp6zijh7hviEdtsqYgUcqKqdeGh8_xOwA1/exec"></iframe>
 </body>
 </html>
