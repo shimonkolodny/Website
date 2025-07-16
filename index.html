@@ -7,44 +7,43 @@
       background: linear-gradient(45deg, lightpink, lightgreen, lightblue);
       font-family: Arial, sans-serif;
       padding: 25px;
+      text-align: center;
     }
     #content {
       background-color: white;
       border-radius: 15px;
       padding: 25px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      display: inline-block;
+      max-width: 600px;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 15px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      width: 80%;
     }
     button {
       background-color: yellow;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 15px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<div id="content">Loading content...</div>
+<div id="content">Loading...</div>
 
 <script>
-async function loadContent() {
-  const params = new URLSearchParams(location.search);
-  const code = params.get('code');
-
-  if (!code) {
-    document.getElementById('content').innerHTML = "<h2>No invite code found!</h2>";
-    return;
-  }
-
+async function loadContent(inviteCode) {
   const jsonUrl = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
 
   try {
     const codesRes = await fetch(jsonUrl);
-    if (!codesRes.ok) throw new Error('Could not load codes.json.');
+    if (!codesRes.ok) throw new Error('Could not load invite links.');
 
     const codes = await codesRes.json();
-    const htmlUrl = codes[code];
+    const htmlUrl = codes[inviteCode];
 
     if (!htmlUrl) {
       document.getElementById('content').innerHTML = "<h2>Invite code invalid.</h2>";
@@ -52,7 +51,7 @@ async function loadContent() {
     }
 
     const htmlRes = await fetch(htmlUrl);
-    if (!htmlRes.ok) throw new Error('Could not fetch HTML file.');
+    if (!htmlRes.ok) throw new Error('Could not fetch content.');
 
     const html = await htmlRes.text();
     document.getElementById('content').innerHTML = html;
@@ -62,7 +61,36 @@ async function loadContent() {
   }
 }
 
-loadContent();
+function askForCode() {
+  document.getElementById('content').innerHTML = `
+    <h3>Please enter your invite code or full invite link:</h3>
+    <input id="codeInput" placeholder="Invite code or full link">
+    <br><button onclick="submitCode()">Load Content</button>
+  `;
+}
+
+function submitCode() {
+  let input = document.getElementById('codeInput').value.trim();
+  let inviteCode = input;
+
+  if(input.includes("?code=")){
+    inviteCode = new URL(input).searchParams.get('code');
+  }
+
+  if(inviteCode){
+    loadContent(inviteCode);
+  } else {
+    alert('Please enter a valid code or link.');
+  }
+}
+
+window.onload = function(){
+  const params = new URLSearchParams(location.search);
+  let code = params.get('code');
+
+  if (!code) askForCode();
+  else loadContent(code);
+};
 </script>
 
 </body>
