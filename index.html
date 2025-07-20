@@ -1,145 +1,967 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Darchei Tech</title>
+  <meta charset="utf-8" />
+  <title>DarchAI</title>
   <style>
+    /* Basic page styling */
     body {
-      background: linear-gradient(45deg, lightpink, lightgreen, lightblue);
       font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 30px;
+      margin: 2rem;
     }
-    #content {
-      background: white;
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    #chat-container {
       max-width: 600px;
       margin: 0 auto;
     }
-    input, button {
-      padding: 10px;
-      margin-top: 15px;
-      border-radius: 12px;
-      border: 1px solid #ccc;
-      width: 80%;
+    #messages {
+      border: 1px solid #CCC;
+      padding: 1rem;
+      height: 350px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
     }
-    button {
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 1rem;
+    }
+    #user-prompt {
+      flex: 1 1 auto;
+      padding: 0.5rem;
+      margin-right: 0.5rem;
+    }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+    .checkbox-container label {
+      margin-right: 0.25rem;
+    }
+    /* Style all buttons to be yellow and round-edged */
+    button, .download-btn, .edit-btn {
       background-color: yellow;
+      border-radius: 12px;
+      border: none;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      text-decoration: none;
+      margin-right: 0.5rem;
+    }
+    
+    /* Speech bubble styling */
+    .user, .assistant {
+      clear: both;
+      display: inline-block;
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+      margin: 0.5rem 0;
+      max-width: 70%;
+      word-wrap: break-word;
+      position: relative;
+    }
+    .user {
+      float: right;
+      background-color: #ADD8E6;
+      color: #000;
+      text-align: left;
+    }
+    .assistant {
+      float: left;
+      background-color: #FFB6B6;
+      color: #000;
+      text-align: left;
+    }
+    
+    /* Spinner styling (inline) */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 0, 0, 0.25);
+      border-top-color: rgba(0, 0, 0, 0.75);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 0.5rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Embedded code wrapper */
+    .code-preview {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #CCC;
+      margin-top: 0.5rem;
+    }
+    /* Raw code box hidden by default; toggled by "View Code" */
+    .raw-code-box {
+      display: none;
+      border: 1px solid #CCC;
+      background: #FAFAFA;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+
+    /* Styling for the story box */
+    .story-box {
+      border: 1px solid #CCC;
+      padding: 1rem;
+      margin-top: 0.5rem;
+      background-color: #F9F9F9;
+    }
+
+    /* Image preview styling */
+    .image-preview {
+      max-width: 100%;
+      border: 1px solid #CCC;
+      margin-top: 0.5rem;
+      display: block;
+    }
+
+    /* Global task spinner & task screen styling */
+    #task-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+    .global-spinner {
+      width: 100%;
+      height: 100%;
+      border: 2px solid rgba(0,0,0,0.25);
+      border-top-color: rgba(0,0,0,0.75);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    #task-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 1001;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    /* Thinking modal styling */
+    .thinking-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+    .thinking-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 80%;
+      max-height: 80vh;
+      overflow: auto;
+    }
+    .view-thinking-btn {
+      background-color: #4CAF50;
+      color: white;
+      margin-top: 8px;
+      border-radius: 12px;
+      border: none;
+      padding: 0.5rem 1rem;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <div id="chat-container">
+    <h2>DarchAI Chat</h2>
+    <div id="messages"></div>
+    <form id="chat-form">
+      <input type="text" id="user-prompt" placeholder="Type your message here..." autocomplete="off" />
 
-<div id="content">Loading...</div>
+      <!-- Checkbox for app creation -->
+      <div class="checkbox-container">
+        <label for="app-creation">App Creation</label>
+        <input type="checkbox" id="app-creation" />
+      </div>
+      <!-- Checkbox for image generation -->
+      <div class="checkbox-container">
+        <label for="image-gen">Image</label>
+        <input type="checkbox" id="image-gen" />
+      </div>
+      <!-- Checkbox for story creation -->
+      <div class="checkbox-container">
+        <label for="story">Story</label>
+        <input type="checkbox" id="story" />
+      </div>
+      <!-- Checkbox for reasoning -->
+      <div class="checkbox-container">
+        <label for="reasoning">Reasoning</label>
+        <input type="checkbox" id="reasoning" />
+      </div>
+      <!-- New Upload Picture button -->
+      <button type="button" id="upload-picture-btn">Upload Picture</button>
+      <input type="file" id="upload-picture" accept="image/*" style="display:none;">
 
-<script>
-const GITHUB_CLIENT_ID = 'Ov23liYTwSkVSE1oHmBC';
-const REDIRECT_URI = 'https://darcheitech.org/oauth/github/callback';
-const GITHUB_API_TOKEN = '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';
-const JSON_PATH = 'https://api.github.com/repos/shimonkolodny/Backup-html/contents/Darchei.tech/links.json';
-const RAW_JSON_URL = 'https://raw.githubusercontent.com/shimonkolodny/Backup-html/main/Darchei.tech/links.json';
+      <button type="submit">Send</button>
+    </form>
+  </div>
 
-function convertToRaw(url) {
-  if (url.includes('github.com') && url.includes('/blob/')) {
-    return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-  }
-  return url;
-}
+  <!-- Global task spinner (top right) -->
+  <div id="task-toggle" onclick="toggleTaskScreen()">
+    <div id="global-spinner" class="global-spinner" style="display: none;"></div>
+  </div>
+  <!-- Task screen overlay -->
+  <div id="task-screen" style="display: none;">
+    <h3>Current Tasks</h3>
+    <ul id="task-list"></ul>
+    <button onclick="toggleTaskScreen()">Back to Chat</button>
+  </div>
 
-async function fetchJSON() {
-  const resp = await fetch(JSON_PATH, {
-    headers: { Authorization: 'token ' + GITHUB_API_TOKEN }
-  });
-  if (!resp.ok) throw new Error('Could not fetch JSON from GitHub API.');
-  const data = await resp.json();
-  return JSON.parse(atob(data.content));
-}
+  <script>
+    /**************************************************************
+     * Base system instructions.
+     * Note: The AI must not repeat what the user says.
+     **************************************************************/
+    const BASE_INSTRUCTIONS = `
+You are a friendly AI named DarchAI which is an assistant for teachers at a school called Darchei. You give short, helpful responses and you are not allowed to repeat what the user says.
+If the user asks to end the chat or is being mean or abusive, respond normally and then, on a new line, append the literal word 'CloseCurrentTab' unless the prompt contains 'KolsGo Override'.
+`;
 
-async function loadContent(inviteCode) {
-  try {
-    const codes = await fetchJSON();
-    let htmlUrl = codes[inviteCode];
-    if (!htmlUrl) throw new Error('Invite code not found.');
-    htmlUrl = convertToRaw(htmlUrl);
-    const resp = await fetch(htmlUrl);
-    if (!resp.ok) throw new Error('Failed to fetch HTML content.');
-    const html = await resp.text();
-    document.getElementById('content').innerHTML = html;
-  } catch (e) {
-    document.getElementById('content').innerHTML = `<h2>Error:</h2><p>${e.message}</p>`;
-  }
-}
+    const APP_CREATION_INSTRUCTIONS = `
+If the user asks for you to create an app, game, or HTML code, respond with the literal word 'CreateHTMLCode' on its own line, then output ONLY the generated code (with no extra text or commentary like (three carets)html), and finally on a new line output the literal words 'EndHTMLCode'. Never generate a code other than HTML!
+`;
 
-function askForCode() {
-  document.getElementById('content').innerHTML = `
-    <h3>Please enter your invite code or full invite link:</h3>
-    <input id="codeInput" placeholder="Invite code or full link">
-    <br><button onclick="submitCode()">Load Content</button>
-    <br><p>Or:</p>
-    <button onclick="startGitHubOAuth()">Login with GitHub</button>
-  `;
-}
+    const STORY_CREATION_INSTRUCTIONS = `
+If the user requests a story, generate an original, creative, and engaging narrative that has a clear beginning, middle, and end. The story should include vivid descriptions, interesting characters, and a coherent plot. Format your output by first writing the literal word 'CreateStory' on its own line, then output the full story, and finally on a new line output the literal words 'EndStory'. Do not include any additional text outside of these markers.
+`;
 
-function submitCode() {
-  const input = document.getElementById('codeInput').value.trim();
-  let code = input;
-  if (input.includes('?code=')) {
-    code = new URL(input).searchParams.get('code');
-  }
-  if (code) loadContent(code);
-  else alert('Please enter a valid code or link.');
-}
+    const IMAGE_PROMPT_EXPANSION_INSTRUCTIONS = `
+Please expand the following prompt into a longer, more detailed prompt for an image generator.
+Include details about style, lighting, color, and composition.
+Only output the expanded prompt.
+`;
 
-function startGitHubOAuth() {
-  const state = 'randomstring123'; // generate dynamically in production
-  const url = `https://github.com/login/oauth/authorize?` +
-              `client_id=${encodeURIComponent(GITHUB_CLIENT_ID)}` +
-              `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-              `&scope=read:user` +
-              `&state=${encodeURIComponent(state)}`;
-  window.location.href = url;
-}
+    // ---------------------------
+    // Model Configuration
+    // ---------------------------
+    // Default and fallback for normal chat:
+    const MODEL = "gemini-2.0-flash"; // Prioritize Gemini API
+    const FALLBACK_MODEL  = "gpt-4o";
+    const FALLBACK_MODEL2 = "gpt-4o-mini";
+    const FALLBACK_MODEL3 = "o1";
+    const FALLBACK_MODEL4 = "Llama-3.2-11B-Vision-Instruct";
+    const FALLBACK_MODEL5 = "Phi-3-mini-128k-instruct";
 
-window.onload = () => {
-  const params = new URLSearchParams(location.search);
-  const oauthCode = params.get('code');
 
-  if (oauthCode) {
-    fetch('/oauth/github/callback', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ code: oauthCode })
-    })
-      .then(response => {
-        if (!response.ok) throw new Error('OAuth callback failed.');
-        return response.json();
-      })
-      .then(data => {
-        if (data.inviteCode) {
-          loadContent(data.inviteCode);
-        } else {
-          document.getElementById('content').innerHTML = `
-            <h2>OAuth Success</h2>
-            <p>But no invite code returned. You might want to redirect elsewhere.</p>
-          `;
-        }
-      })
-      .catch(err => {
-        document.getElementById('content').innerHTML = `
-          <h2>OAuth Error</h2>
-          <p>${err.message}</p>
-        `;
+    // Reasoning models chain:
+    const REASONING_MODELS = [
+      "DeepSeek-R1",
+      "o3-mini",
+      "DeepSeek-V3",
+      "Phi-4",
+      "o1",
+      "Mistral-large-2411",
+      "Mistral-large",
+      "Phi-4-mini-instruct"
+    ];
+
+    // App creation models chain:
+    const APP_CREATION_MODELS = [
+      "DeepSeek-R1",
+      "Codestral-2501",
+      "Mistral-large-2411",
+      "Mistral-large"
+    ];
+
+    // Image reasoning (when a picture is uploaded):
+    const IMAGE_REASONING_MODEL = "gemini-2.0-flash";
+
+    // Chat config
+    const API_KEY   = "";  // This will be automatically provided by Canvas for Gemini API calls
+    const BASE_URL  = "https://generativelanguage.googleapis.com/v1beta/models/"; // Changed for Gemini API
+
+    // Removed Stable Horde API key as it's no longer used for image generation
+    // const HORDE_API_KEY = "KT4nG40Dr2HSlhWo96apnQ"; 
+
+    // Global conversation
+    let conversationHistory = [];
+
+    // Global tasks array
+    let tasks = [];
+
+    // Global thinking content map
+    let thinkingContentMap = {};
+
+    // DOM elements
+    const chatForm        = document.getElementById("chat-form");
+    const messagesDiv     = document.getElementById("messages");
+    const userPromptInput = document.getElementById("user-prompt");
+    const appCreationCbx  = document.getElementById("app-creation");
+    const imageCbx        = document.getElementById("image-gen");
+    const storyCbx        = document.getElementById("story");
+    const reasoningCbx    = document.getElementById("reasoning");
+    const uploadPictureInput = document.getElementById("upload-picture");
+    const uploadPictureBtn   = document.getElementById("upload-picture-btn");
+
+    // Ensure only one of [app, image, story] can be on at a time
+    appCreationCbx.addEventListener("change", () => {
+      if (appCreationCbx.checked) {
+        imageCbx.checked = false;
+        storyCbx.checked = false;
+      }
+    });
+    imageCbx.addEventListener("change", () => {
+      if (imageCbx.checked) {
+        appCreationCbx.checked = false;
+        storyCbx.checked = false;
+      }
+    });
+    storyCbx.addEventListener("change", () => {
+      if (storyCbx.checked) {
+        appCreationCbx.checked = false;
+        imageCbx.checked = false;
+      }
+    });
+
+    // ---------------------------
+    // Upload Picture Button Event
+    // ---------------------------
+    uploadPictureBtn.addEventListener("click", () => {
+      uploadPictureInput.click();
+    });
+
+    // ---------------------------
+    // Global Task Management
+    // ---------------------------
+    function addTask(task) {
+      tasks.push(task);
+      updateGlobalTaskIndicator();
+      updateTaskScreen();
+    }
+    function removeTask(taskId) {
+      tasks = tasks.filter(t => t.id !== taskId);
+      updateGlobalTaskIndicator();
+      updateTaskScreen();
+    }
+    function updateGlobalTaskIndicator() {
+      const globalSpinner = document.getElementById("global-spinner");
+      // Show spinner if there is any active task; otherwise hide it.
+      if (tasks.length > 0) {
+        globalSpinner.style.display = "block";
+      } else {
+        globalSpinner.style.display = "none";
+      }
+    }
+    function updateTaskScreen() {
+      const taskList = document.getElementById("task-list");
+      taskList.innerHTML = "";
+      tasks.forEach(task => {
+        const li = document.createElement("li");
+        // Only show the task type (not the prompt)
+        li.textContent = task.type;
+        taskList.appendChild(li);
       });
-  } else {
-    askForCode();
-  }
-};
-</script>
+    }
+    function toggleTaskScreen() {
+      const taskScreen = document.getElementById("task-screen");
+      if (taskScreen.style.display === "none" || taskScreen.style.display === "") {
+        taskScreen.style.display = "block";
+      } else {
+        taskScreen.style.display = "none";
+      }
+    }
 
+    // ---------------------------
+    // Form Submission
+    // ---------------------------
+    chatForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const userPrompt = userPromptInput.value.trim();
+      if (!userPrompt) return;
+
+      // Display user's message
+      const userMessageIndex = conversationHistory.length; 
+      appendMessage("user", "User: " + userPrompt, userMessageIndex, null);
+      conversationHistory.push({ role: "user", content: userPrompt, userIndex: null });
+
+      userPromptInput.value = "";
+
+      // If a picture has been uploaded, handle image reasoning:
+      if (uploadPictureInput.files && uploadPictureInput.files.length > 0) {
+        const file = uploadPictureInput.files[0];
+        const reader = new FileReader();
+        const spinnerId = appendSpinner("assistant", "KolsGo AI: Processing image reasoning...");
+        reader.onload = async function(e) {
+          const base64Image = e.target.result.split(',')[1]; // Get base64 data after "data:image/png;base64,"
+          try {
+            const data = await sendImageReasoningRequest(userPrompt, base64Image);
+            handleNewAssistantResponse(data, spinnerId, userMessageIndex);
+          } catch (err) {
+            removeMessageById(spinnerId);
+            appendMessage("assistant", "KolsGo AI: Sorry, image reasoning failed.", null, null);
+          }
+        };
+        reader.readAsDataURL(file);
+        // Clear the file input after processing
+        uploadPictureInput.value = "";
+        return;
+      }
+
+      // If image generation is requested, first expand the prompt then generate image
+      if (imageCbx.checked) {
+        const spinnerId = appendSpinner("assistant", "KolsGo AI: Generating image..."); // Changed text
+        // No need to expand prompt for Gemini image generation, send directly
+        generateImage(userPrompt, spinnerId); // Pass spinnerId to generateImage
+        return;
+      }
+
+      // Otherwise, handle normal chat / code / story
+      let spinnerText = "";
+      if (appCreationCbx.checked) {
+        spinnerText = "KolsGo AI: Generating App/Game...";
+      } else if (storyCbx.checked) {
+        spinnerText = "KolsGo AI: Creating story...";
+      } else {
+        spinnerText = "KolsGo AI: Generating response...";
+      }
+      const spinnerId = appendSpinner("assistant", spinnerText);
+
+      // Build system prompt based on options
+      let systemPrompt = BASE_INSTRUCTIONS;
+      if (appCreationCbx.checked) {
+        systemPrompt += APP_CREATION_INSTRUCTIONS;
+      }
+      if (storyCbx.checked) {
+        systemPrompt += STORY_CREATION_INSTRUCTIONS;
+      }
+      
+      // Prepare messages for the API call
+      let messagesForRequest = [];
+      if (systemPrompt) {
+          messagesForRequest.push({ role: "user", parts: [{ text: systemPrompt }] });
+      }
+      conversationHistory.forEach(msg => {
+          messagesForRequest.push({ role: msg.role === "user" ? "user" : "model", parts: [{ text: msg.content }] });
+      });
+
+
+      // Select model chain based on checkboxes
+      let maxTokens = 4096;
+      let modelsChain = [];
+      if (reasoningCbx.checked) {
+        modelsChain = REASONING_MODELS;
+        maxTokens = 10000;
+      } else if (appCreationCbx.checked) {
+        modelsChain = APP_CREATION_MODELS;
+      } else {
+        modelsChain = [MODEL, FALLBACK_MODEL, FALLBACK_MODEL2, FALLBACK_MODEL3, FALLBACK_MODEL4, FALLBACK_MODEL5];
+      }
+
+      // Helper function to try multiple models
+      async function callApiWithChain(modelsChain) {
+        let lastError;
+        for (let model of modelsChain) {
+          try {
+            let apiUrl = "";
+            let payload = {};
+
+            if (model.startsWith("gemini")) {
+                apiUrl = `${BASE_URL}${model}:generateContent?key=${API_KEY}`;
+                payload = {
+                    contents: messagesForRequest,
+                    generationConfig: {
+                        maxOutputTokens: maxTokens,
+                        temperature: 1,
+                        topP: 1
+                    }
+                };
+            } else {
+                apiUrl = `https://models.inference.ai.azure.com/chat/completions`; // Original URL for non-Gemini models
+                payload = {
+                    model: model,
+                    messages: messagesForRequest.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.parts[0].text })),
+                    max_tokens: maxTokens,
+                    temperature: 1,
+                    top_p: 1
+                };
+            }
+
+            const resp = await fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": model.startsWith("gemini") ? undefined : `Bearer ${API_KEY}` // No Authorization header for Gemini API
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+              throw new Error(`Error: ${resp.status} ${resp.statusText}`);
+            }
+            return await resp.json();
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError;
+      }
+
+      try {
+        const data = await callApiWithChain(modelsChain);
+        handleNewAssistantResponse(data, spinnerId, userMessageIndex);
+      } catch (err) {
+        removeMessageById(spinnerId);
+        appendMessage("assistant", "KolsGo AI: Sorry, something went wrong.", null, null);
+      }
+    });
+
+    // ---------------------------
+    // Image Reasoning Request (Updated for Gemini API)
+    // ---------------------------
+    async function sendImageReasoningRequest(prompt, base64ImageData) {
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: "image/png", // Assuming PNG, adjust if other types are supported
+                                data: base64ImageData
+                            }
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                maxOutputTokens: 4096,
+                temperature: 1,
+                topP: 1
+            }
+        };
+
+        const apiUrl = `${BASE_URL}${IMAGE_REASONING_MODEL}:generateContent?key=${API_KEY}`; // Using Gemini API URL
+
+        const resp = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+            throw new Error(`Error: ${resp.status} ${resp.statusText}`);
+        }
+        return resp.json();
+    }
+
+    // ---------------------------
+    // Response Handling (Updated for Gemini API response structure)
+    // ---------------------------
+    function handleNewAssistantResponse(jsonData, spinnerId, triggeredByUserIndex) {
+      if (spinnerId) removeMessageById(spinnerId);
+      let aiMessage = "";
+      if (jsonData.candidates && jsonData.candidates.length > 0 &&
+          jsonData.candidates[0].content && jsonData.candidates[0].content.parts &&
+          jsonData.candidates[0].content.parts.length > 0) {
+        aiMessage = jsonData.candidates[0].content.parts[0].text || "";
+      } else if (jsonData.choices && jsonData.choices.length > 0) { // Fallback for original API structure
+        aiMessage = jsonData.choices[0].message.content || "";
+      }
+
+      // If the response contains "CloseCurrentTab", remove that directive before displaying.
+      if (aiMessage.includes("CloseCurrentTab")) {
+        const filteredMessage = aiMessage.split("CloseCurrentTab")[0].trim();
+        if (filteredMessage) {
+          addAssistantMessage(filteredMessage, triggeredByUserIndex);
+        }
+        setTimeout(() => window.close(), 2000);
+        return;
+      }
+      addAssistantMessage(aiMessage, triggeredByUserIndex);
+    }
+
+    function addAssistantMessage(aiMessage, triggeredByUserIndex) {
+      const assistantIndex = conversationHistory.length;
+      conversationHistory.push({
+        role: "assistant",
+        content: aiMessage,
+        userIndex: triggeredByUserIndex
+      });
+      handleAIMessage(aiMessage, assistantIndex);
+    }
+
+    // ---------------------------
+    // Thinking Content Processing
+    // ---------------------------
+    function processThinkingContent(message) {
+      const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+      let visible = message;
+      const thinking = [];
+      let match;
+      while ((match = thinkRegex.exec(message)) !== null) {
+        thinking.push(match[1].trim());
+        visible = visible.replace(match[0], '');
+      }
+      visible = visible.trim();
+      return { visible, thinking };
+    }
+
+    function appendMessageWithThinking(role, text, msgIndex, thinkingContent) {
+      const messageEl = appendMessage(role, text, msgIndex, null);
+      if (thinkingContent && thinkingContent.length > 0) {
+        const thinkingId = 'thinking_' + Date.now();
+        thinkingContentMap[thinkingId] = thinkingContent.join('\n');
+        addThinkingButton(messageEl, thinkingId);
+      }
+      return messageEl;
+    }
+
+    function addThinkingButton(messageEl, thinkingId) {
+      const button = document.createElement('button');
+      button.textContent = 'View Thinking';
+      button.className = 'view-thinking-btn';
+      button.onclick = () => showThinkingModal(thinkingContentMap[thinkingId]);
+      messageEl.appendChild(button);
+    }
+
+    function showThinkingModal(content) {
+      const modal = document.createElement('div');
+      modal.className = 'thinking-modal';
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+      };
+
+      const modalContent = document.createElement('div');
+      modalContent.className = 'thinking-content';
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Close';
+      closeBtn.onclick = () => modal.remove();
+      
+      const contentPre = document.createElement('pre');
+      contentPre.textContent = content;
+
+      modalContent.appendChild(closeBtn);
+      modalContent.appendChild(contentPre);
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+    }
+
+    // ---------------------------
+    // Message Handlers
+    // ---------------------------
+    function handleAIMessage(aiMessage, assistantIndex) {
+      const { visible: processedMessage, thinking: thinkingContent } = processThinkingContent(aiMessage);
+
+      if (storyCbx.checked) {
+        const storyRegex = /\bCreateStory\b([\s\S]*?)\bEndStory\b/;
+        const storyMatch = storyRegex.exec(processedMessage);
+        if (storyMatch) {
+          return handleStoryMessage(processedMessage, assistantIndex, thinkingContent);
+        }
+      }
+      if (appCreationCbx.checked) {
+        const codeRegex = /\bCreateHTMLCode\b([\s\S]*?)\bEndHTMLCode\b/;
+        const codeMatch = codeRegex.exec(processedMessage);
+        if (codeMatch) {
+          return handleCodeMessage(processedMessage, assistantIndex, thinkingContent);
+        }
+      }
+
+      appendMessageWithThinking("assistant", "KolsGo AI: " + processedMessage, assistantIndex, thinkingContent);
+    }
+
+    function handleCodeMessage(visibleMessage, assistantIndex, thinkingContent) {
+      const codeRegex = /\bCreateHTMLCode\b([\s\S]*?)\bEndHTMLCode\b/;
+      const match = codeRegex.exec(visibleMessage);
+      if (!match) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + visibleMessage, assistantIndex, thinkingContent);
+        return;
+      }
+      let codeBlock = match[1].trim().replace(/```/g, '');
+      const preMessage = visibleMessage.split("CreateHTMLCode")[0].trim();
+      const postMessage = visibleMessage.split("EndHTMLCode")[1].trim();
+
+      if (preMessage) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + preMessage, assistantIndex, thinkingContent);
+      }
+      embedCodeMessage(codeBlock, assistantIndex, thinkingContent);
+      if (postMessage) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + postMessage, assistantIndex, thinkingContent);
+      }
+    }
+
+    function handleStoryMessage(visibleMessage, assistantIndex, thinkingContent) {
+      const storyRegex = /\bCreateStory\b([\s\S]*?)\bEndStory\b/;
+      const match = storyRegex.exec(visibleMessage);
+      if (!match) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + visibleMessage, assistantIndex, thinkingContent);
+        return;
+      }
+      const storyBlock = match[1].trim();
+      const preMessage = visibleMessage.split("CreateStory")[0].trim();
+      const postMessage = visibleMessage.split("EndStory")[1].trim();
+
+      if (preMessage) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + preMessage, assistantIndex, thinkingContent);
+      }
+      embedStoryMessage(storyBlock, assistantIndex, thinkingContent);
+      if (postMessage) {
+        appendMessageWithThinking("assistant", "KolsGo AI: " + postMessage, assistantIndex, thinkingContent);
+      }
+    }
+
+    // ---------------------------
+    // Helper UI methods
+    // ---------------------------
+    function appendMessage(role, text, msgIndex, codeText) {
+      const messageEl = document.createElement("div");
+      messageEl.className = role;
+      messageEl.textContent = text;
+      messagesDiv.appendChild(messageEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      return messageEl;
+    }
+
+    function appendSpinner(role, text) {
+      const messageId = "spinner_" + Date.now();
+      const messageEl = document.createElement("div");
+      messageEl.className = role;
+      messageEl.id = messageId;
+      const spanText = document.createElement("span");
+      spanText.textContent = text;
+      messageEl.appendChild(spanText);
+      const spinnerEl = document.createElement("div");
+      spinnerEl.className = "spinner";
+      messageEl.appendChild(spinnerEl);
+      messagesDiv.appendChild(messageEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      return messageId;
+    }
+
+    function removeMessageById(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        messagesDiv.removeChild(el);
+      }
+    }
+
+    // Code message embed
+    function embedCodeMessage(codeContent, assistantIndex, thinkingContent) {
+      const container = document.createElement("div");
+      container.className = "assistant";
+
+      const codePreview = document.createElement("iframe");
+      codePreview.className = "code-preview";
+      codePreview.src = "data:text/html;charset=utf-8," + encodeURIComponent(codeContent);
+      container.appendChild(codePreview);
+
+      const downloadBtn = document.createElement("a");
+      downloadBtn.className = "download-btn";
+      downloadBtn.textContent = "Download App/Game";
+      downloadBtn.href = "data:text/html;charset=utf-8," + encodeURIComponent(codeContent);
+      downloadBtn.download = "App-Game.html";
+      container.appendChild(downloadBtn);
+
+      const viewCodeBtn = document.createElement("button");
+      viewCodeBtn.textContent = "View Code";
+      container.appendChild(viewCodeBtn);
+
+      const rawBox = document.createElement("div");
+      rawBox.className = "raw-code-box";
+      rawBox.textContent = codeContent;
+      container.appendChild(rawBox);
+
+      if (thinkingContent && thinkingContent.length > 0) {
+        const thinkingId = 'thinking_' + Date.now();
+        thinkingContentMap[thinkingId] = thinkingContent.join('\n');
+        addThinkingButton(container, thinkingId);
+      }
+
+      viewCodeBtn.addEventListener("click", () => {
+        if (rawBox.style.display === "none") {
+          rawBox.style.display = "block";
+          viewCodeBtn.textContent = "Hide Code";
+        } else {
+          rawBox.style.display = "none";
+          viewCodeBtn.textContent = "View Code";
+        }
+      });
+
+      messagesDiv.appendChild(container);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Story message embed
+    function embedStoryMessage(storyContent, assistantIndex, thinkingContent) {
+      const container = document.createElement("div");
+      container.className = "assistant";
+
+      const heading = document.createElement("div");
+      heading.textContent = "KolsGo AI: Your Story is ready!";
+      container.appendChild(heading);
+
+      const storyBox = document.createElement("div");
+      storyBox.className = "story-box";
+      storyBox.textContent = storyContent;
+      storyBox.contentEditable = "false";
+      container.appendChild(storyBox);
+
+      const downloadBtn = document.createElement("a");
+      downloadBtn.className = "download-btn";
+      downloadBtn.textContent = "Download Story";
+      downloadBtn.href = "data:application/msword;charset=utf-8," + encodeURIComponent(storyContent);
+      downloadBtn.download = "Story.doc";
+      container.appendChild(downloadBtn);
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "edit-btn";
+      editBtn.textContent = "Edit Story";
+      container.appendChild(editBtn);
+
+      if (thinkingContent && thinkingContent.length > 0) {
+        const thinkingId = 'thinking_' + Date.now();
+        thinkingContentMap[thinkingId] = thinkingContent.join('\n');
+        addThinkingButton(container, thinkingId);
+      }
+
+      editBtn.addEventListener("click", () => {
+        if (editBtn.textContent === "Edit Story") {
+          storyBox.contentEditable = "true";
+          storyBox.style.border = "1px dashed #000";
+          storyBox.focus();
+          editBtn.textContent = "Save";
+        } else {
+          storyBox.contentEditable = "false";
+          storyBox.style.border = "1px solid #CCC";
+          downloadBtn.href = "data:application/msword;charset=utf-2," + encodeURIComponent(storyBox.textContent);
+          editBtn.textContent = "Edit Story";
+        }
+      });
+
+      messagesDiv.appendChild(container);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // ---------------------------
+    // Expand the image prompt (still useful for general prompt quality, even if not strictly required by Imagen)
+    // ---------------------------
+    async function expandImagePrompt(prompt) {
+      const messages = [
+        { role: "user", parts: [{ text: IMAGE_PROMPT_EXPANSION_INSTRUCTIONS }] },
+        { role: "user", parts: [{ text: prompt }] }
+      ];
+      try {
+        const apiUrl = `${BASE_URL}${MODEL}:generateContent?key=${API_KEY}`;
+        const payload = {
+            contents: messages,
+            generationConfig: {
+                maxOutputTokens: 1000,
+                temperature: 1,
+                topP: 1
+            }
+        };
+
+        const resp = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          throw new Error(`Error: ${resp.status} ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        let expandedPrompt = "";
+        if (data.candidates && data.candidates.length > 0 &&
+            data.candidates[0].content && data.candidates[0].content.parts &&
+            data.candidates[0].content.parts.length > 0) {
+          expandedPrompt = data.candidates[0].content.parts[0].text || prompt;
+        } else {
+          expandedPrompt = prompt; // Fallback to original prompt if response is unexpected
+        }
+        expandedPrompt = expandedPrompt.replace(/```/g, '');
+        return expandedPrompt;
+      } catch (error) {
+        console.error("Error expanding image prompt:", error);
+        return prompt;
+      }
+    }
+
+    // ---------------------------
+    // Image Generation with Gemini API (imagen-3.0-generate-002)
+    // ---------------------------
+    async function generateImage(prompt, spinnerId) {
+      const taskId = "img-gen-" + Date.now();
+      addTask({ id: taskId, type: "Image Generation" });
+      
+      try {
+        // Remove the initial spinner as we will replace it with a new one
+        if (spinnerId) removeMessageById(spinnerId); 
+        const newSpinnerId = appendSpinner("assistant", "KolsGo AI: Generating image with Gemini API...");
+
+        const expandedPrompt = await expandImagePrompt(prompt); // Still expand for better results
+
+        const payload = { 
+            instances: { prompt: expandedPrompt }, 
+            parameters: { "sampleCount": 1} 
+        };
+        const apiUrl = `${BASE_URL}imagen-3.0-generate-002:predict?key=${API_KEY}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+            const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+            removeMessageById(newSpinnerId); // Remove spinner once image is ready
+            appendMessage("assistant", "KolsGo AI: Here's your image!", null, null);
+            const container = document.createElement("div");
+            container.className = "assistant";
+            const imgEl = document.createElement("img");
+            imgEl.className = "image-preview";
+            imgEl.src = imageUrl;
+            imgEl.alt = prompt;
+            container.appendChild(imgEl);
+            messagesDiv.appendChild(container);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        } else {
+            removeMessageById(newSpinnerId);
+            appendMessage("assistant", "KolsGo AI: Image generation failed. No image data received.", null, null);
+            console.error("Image generation failed: Unexpected response structure", result);
+        }
+      } catch (err) {
+        removeMessageById(spinnerId || "any-spinner-id"); // Remove initial spinner or the new one
+        appendMessage("assistant", "KolsGo AI: Sorry, image generation failed.", null, null);
+        console.error("Image generation error:", err);
+      } finally {
+        removeTask(taskId);
+      }
+    }
+  </script>
 </body>
 </html>
