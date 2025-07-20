@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>DarchAI</title>
+  <title>KolsGo AI Chat</title>
   <style>
     /* Basic page styling */
     body {
@@ -187,7 +187,7 @@
 </head>
 <body>
   <div id="chat-container">
-    <h2>DarchAI Chat</h2>
+    <h2>KolsGo AI Chat</h2>
     <div id="messages"></div>
     <form id="chat-form">
       <input type="text" id="user-prompt" placeholder="Type your message here..." autocomplete="off" />
@@ -216,6 +216,9 @@
       <button type="button" id="upload-picture-btn">Upload Picture</button>
       <input type="file" id="upload-picture" accept="image/*" style="display:none;">
 
+      <!-- New Summarize Chat button -->
+      <button type="button" id="summarize-chat-btn">✨ Summarize Chat ✨</button>
+
       <button type="submit">Send</button>
     </form>
   </div>
@@ -237,7 +240,7 @@
      * Note: The AI must not repeat what the user says.
      **************************************************************/
     const BASE_INSTRUCTIONS = `
-You are a friendly AI named DarchAI which is an assistant for teachers at a school called Darchei. You give short, helpful responses and you are not allowed to repeat what the user says.
+You are a friendly AI named KolsGo AI. You give short, helpful responses and you are not allowed to repeat what the user says.
 If the user asks to end the chat or is being mean or abusive, respond normally and then, on a new line, append the literal word 'CloseCurrentTab' unless the prompt contains 'KolsGo Override'.
 `;
 
@@ -253,6 +256,10 @@ If the user requests a story, generate an original, creative, and engaging narra
 Please expand the following prompt into a longer, more detailed prompt for an image generator.
 Include details about style, lighting, color, and composition.
 Only output the expanded prompt.
+`;
+
+    const SUMMARIZE_PROMPT_INSTRUCTIONS = `
+Please summarize the following conversation history concisely. Focus on the main topics and key outcomes.
 `;
 
     // ---------------------------
@@ -291,11 +298,7 @@ Only output the expanded prompt.
     const IMAGE_REASONING_MODEL = "gemini-2.0-flash";
 
     // Chat config
-    const API_KEY   = "";  // This will be automatically provided by Canvas for Gemini API calls
-    const BASE_URL  = "https://generativelanguage.googleapis.com/v1beta/models/"; // Changed for Gemini API
-
-    // Removed Stable Horde API key as it's no longer used for image generation
-    // const HORDE_API_KEY = "KT4nG40Dr2HSlhWo96apnQ"; 
+    const BASE_URL  = "https://generativelanguage.googleapis.com/v1beta/models/";
 
     // Global conversation
     let conversationHistory = [];
@@ -316,6 +319,7 @@ Only output the expanded prompt.
     const reasoningCbx    = document.getElementById("reasoning");
     const uploadPictureInput = document.getElementById("upload-picture");
     const uploadPictureBtn   = document.getElementById("upload-picture-btn");
+    const summarizeChatBtn   = document.getElementById("summarize-chat-btn"); // New button element
 
     // Ensure only one of [app, image, story] can be on at a time
     appCreationCbx.addEventListener("change", () => {
@@ -342,6 +346,27 @@ Only output the expanded prompt.
     // ---------------------------
     uploadPictureBtn.addEventListener("click", () => {
       uploadPictureInput.click();
+    });
+
+    // ---------------------------
+    // Summarize Chat Button Event
+    // ---------------------------
+    summarizeChatBtn.addEventListener("click", async () => {
+      if (conversationHistory.length === 0) {
+        appendMessage("assistant", "KolsGo AI: There's no chat history to summarize yet!", null, null);
+        return;
+      }
+
+      const spinnerId = appendSpinner("assistant", "KolsGo AI: Summarizing chat history...");
+      try {
+        const summary = await summarizeChatHistory();
+        removeMessageById(spinnerId);
+        appendMessage("assistant", "KolsGo AI (Summary): " + summary, null, null);
+      } catch (err) {
+        removeMessageById(spinnerId);
+        appendMessage("assistant", "KolsGo AI: Sorry, failed to summarize the chat.", null, null);
+        console.error("Summarization error:", err);
+      }
     });
 
     // ---------------------------
@@ -424,7 +449,6 @@ Only output the expanded prompt.
       // If image generation is requested, first expand the prompt then generate image
       if (imageCbx.checked) {
         const spinnerId = appendSpinner("assistant", "KolsGo AI: Generating image..."); // Changed text
-        // No need to expand prompt for Gemini image generation, send directly
         generateImage(userPrompt, spinnerId); // Pass spinnerId to generateImage
         return;
       }
@@ -476,11 +500,13 @@ Only output the expanded prompt.
         let lastError;
         for (let model of modelsChain) {
           try {
+            // Define apiKey locally for Canvas injection
+            const apiKey = ""; 
             let apiUrl = "";
             let payload = {};
 
             if (model.startsWith("gemini")) {
-                apiUrl = `${BASE_URL}${model}:generateContent?key=${API_KEY}`;
+                apiUrl = `${BASE_URL}${model}:generateContent?key=${apiKey}`;
                 payload = {
                     contents: messagesForRequest,
                     generationConfig: {
@@ -504,7 +530,7 @@ Only output the expanded prompt.
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": model.startsWith("gemini") ? undefined : `Bearer ${API_KEY}` // No Authorization header for Gemini API
+                "Authorization": model.startsWith("gemini") ? undefined : `Bearer ${apiKey}` // Use local apiKey
               },
               body: JSON.stringify(payload)
             });
@@ -533,6 +559,8 @@ Only output the expanded prompt.
     // Image Reasoning Request (Updated for Gemini API)
     // ---------------------------
     async function sendImageReasoningRequest(prompt, base64ImageData) {
+        // Define apiKey locally for Canvas injection
+        const apiKey = ""; 
         const payload = {
             contents: [
                 {
@@ -555,7 +583,7 @@ Only output the expanded prompt.
             }
         };
 
-        const apiUrl = `${BASE_URL}${IMAGE_REASONING_MODEL}:generateContent?key=${API_KEY}`; // Using Gemini API URL
+        const apiUrl = `${BASE_URL}${IMAGE_REASONING_MODEL}:generateContent?key=${apiKey}`; // Use local apiKey
 
         const resp = await fetch(apiUrl, {
             method: 'POST',
@@ -568,6 +596,51 @@ Only output the expanded prompt.
         }
         return resp.json();
     }
+
+    // ---------------------------
+    // Summarize Chat History with Gemini API
+    // ---------------------------
+    async function summarizeChatHistory() {
+      const apiKey = ""; // Define apiKey locally for Canvas injection
+      const chatHistoryForSummary = conversationHistory.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.content }]
+      }));
+
+      // Add the summarization instruction as the first message
+      const messages = [{ role: "user", parts: [{ text: SUMMARIZE_PROMPT_INSTRUCTIONS }] }]
+                       .concat(chatHistoryForSummary);
+
+      const payload = {
+          contents: messages,
+          generationConfig: {
+              maxOutputTokens: 500, // Limit summary length
+              temperature: 0.7,
+              topP: 1
+          }
+      };
+
+      const apiUrl = `${BASE_URL}${MODEL}:generateContent?key=${apiKey}`; // Use the default MODEL for summarization
+
+      const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+          throw new Error(`Error: ${response.status} ${response.statusText}`);
+      }
+      const result = await response.json();
+      if (result.candidates && result.candidates.length > 0 &&
+          result.candidates[0].content && result.candidates[0].content.parts &&
+          result.candidates[0].content.parts.length > 0) {
+        return result.candidates[0].content.parts[0].text;
+      } else {
+        throw new Error("No summary content received.");
+      }
+    }
+
 
     // ---------------------------
     // Response Handling (Updated for Gemini API response structure)
@@ -862,12 +935,14 @@ Only output the expanded prompt.
     // Expand the image prompt (still useful for general prompt quality, even if not strictly required by Imagen)
     // ---------------------------
     async function expandImagePrompt(prompt) {
+      // Define apiKey locally for Canvas injection
+      const apiKey = ""; 
       const messages = [
         { role: "user", parts: [{ text: IMAGE_PROMPT_EXPANSION_INSTRUCTIONS }] },
         { role: "user", parts: [{ text: prompt }] }
       ];
       try {
-        const apiUrl = `${BASE_URL}${MODEL}:generateContent?key=${API_KEY}`;
+        const apiUrl = `${BASE_URL}${MODEL}:generateContent?key=${apiKey}`;
         const payload = {
             contents: messages,
             generationConfig: {
@@ -922,7 +997,9 @@ Only output the expanded prompt.
             instances: { prompt: expandedPrompt }, 
             parameters: { "sampleCount": 1} 
         };
-        const apiUrl = `${BASE_URL}imagen-3.0-generate-002:predict?key=${API_KEY}`;
+        // Define apiKey locally for Canvas injection
+        const apiKey = ""; 
+        const apiUrl = `${BASE_URL}imagen-3.0-generate-002:predict?key=${apiKey}`;
 
         const response = await fetch(apiUrl, {
             method: 'POST',
